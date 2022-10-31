@@ -34,7 +34,12 @@ def main():
             out_df = df.iloc[indices]
 
     print(f"{len(out_df)=}")
-    out_df.to_csv("out.csv", header=None)
+    out_df.to_csv(
+        f"{args.path.name.removesuffix('.csv')}_{args.method}_{args.factor}.csv",
+        header=None,
+        sep=";",
+        index=False,
+    )
 
 
 if __name__ == "__main__":
