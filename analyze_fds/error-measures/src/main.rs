@@ -123,46 +123,42 @@ fn main() -> anyhow::Result<()> {
         .map(serde_json::from_str)
         .collect::<Result<_, _>>()?;
 
-    let mut error_counts: Vec<usize> = fds
-        .into_iter()
-        .map(|fd| {
-            let mut error = 0;
-            let x_part = stripped_partition_of(
-                &fd.determinant
-                    .column_identifiers
-                    .iter()
-                    .map(|ident| ident.column_identifier.as_str())
-                    .collect::<Vec<_>>(),
-            );
-            let a_part = stripped_partition_of(&[&fd.dependant.column_identifier]);
-            let xa_part = x_part.product_in(&a_part, &full_df);
-            let mut t: HashMap<usize, usize> = HashMap::new();
-            for partition in xa_part.partitions.into_iter() {
-                let &tuple = partition.iter().next().unwrap();
-                t.insert(tuple, partition.len());
-            }
-            for partition in x_part.partitions.into_iter() {
-                error += partition.len();
-                let m = partition
-                    .into_iter()
-                    .flat_map(|tuple| t.get(&tuple).copied())
-                    .max()
-                    .unwrap_or(1);
-                error -= m;
-            }
-
-            error
-        })
-        .collect();
-
-    error_counts.sort_unstable();
-    for error_count in error_counts {
-        println!(
-            "Fd has {} wrong rows, error is {}",
-            error_count,
-            error_count as f64 / full_df.height() as f64
+    let error_counts = fds.into_iter().map(|fd| {
+        let mut error = 0;
+        let x_part = stripped_partition_of(
+            &fd.determinant
+                .column_identifiers
+                .iter()
+                .map(|ident| ident.column_identifier.as_str())
+                .collect::<Vec<_>>(),
         );
-    }
+        let a_part = stripped_partition_of(&[&fd.dependant.column_identifier]);
+        let xa_part = x_part.product_in(&a_part, &full_df);
+        let mut t: HashMap<usize, usize> = HashMap::new();
+        for partition in xa_part.partitions.into_iter() {
+            let &tuple = partition.iter().next().unwrap();
+            t.insert(tuple, partition.len());
+        }
+        for partition in x_part.partitions.into_iter() {
+            error += partition.len();
+            let m = partition
+                .into_iter()
+                .flat_map(|tuple| t.get(&tuple).copied())
+                .max()
+                .unwrap_or(1);
+            error -= m;
+        }
+
+        error
+    });
+
+    let errors = error_counts.map(|error| error as f64 / full_df.height() as f64);
+    let errors = Series::new("error", errors.collect::<Vec<_>>());
+    let median_error = errors.median().unwrap();
+    let error_df = DataFrame::new(vec![errors])?;
+    let stats = error_df.describe(None);
+    let stats = stats.vstack(&df! { "describe" => ["median"], "error" => [median_error]}?)?;
+    println!("{}", stats);
 
     Ok(())
 }
