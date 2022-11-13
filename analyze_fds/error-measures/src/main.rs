@@ -76,13 +76,6 @@ fn main() -> anyhow::Result<()> {
         .finish()?
         .with_row_count("id", None)?;
 
-    // For testing:
-    // let full_df = df! {
-    //     "Teacher" => ["Brown", "Walker", "Brown", "Miller", "Brown"],
-    //     "Subject" =>["Math", "Math", "English", "English", "Math"],
-    // }
-    // .unwrap();
-
     let base_partitions: Vec<StrippedPartition> = full_df
         .iter()
         .map(|column| {
@@ -118,11 +111,6 @@ fn main() -> anyhow::Result<()> {
         let initial = col_parts.next().unwrap().clone();
         col_parts.fold(initial, |a, b| a.product_in(b, &full_df))
     };
-
-    // dbg!(&base_partitions);
-    // dbg!(stripped_partition_of(&["Teacher"]));
-    // dbg!(stripped_partition_of(&["Subject"]));
-    // dbg!(stripped_partition_of(&["Teacher", "Subject"]));
 
     let fd_file = fs::read_to_string(fds_path)?;
     let fds: Vec<Line> = fd_file
@@ -170,48 +158,6 @@ fn main() -> anyhow::Result<()> {
             error_count as f64 / full_df.height() as f64
         );
     }
-
-    // let fds_df = JsonReader::new(File::open(fds_path)?)
-    //     .with_json_format(JsonFormat::JsonLines)
-    //     .finish()?;
-    //
-    // let lhs = fds_df
-    //     .column("determinant")?
-    //     .struct_()?
-    //     .field_by_name("columnIdentifiers")?;
-    // let lhs = lhs
-    //     .list()?
-    //     .try_apply(|list| Ok(list.struct_()?.field_by_name("columnIdentifier")?))?
-    //     .into_series();
-    // // dbg!(lhs);
-    //
-    // let rhs = fds_df
-    //     .column("dependant")?
-    //     .struct_()?
-    //     .field_by_name("columnIdentifier")?;
-    //
-    // let fds = df! {
-    //     "lhs" => lhs,
-    //     "rhs" => rhs,
-    // }?;
-    //
-    // let joined = fds
-    //     .column("lhs")?
-    //     .list()?
-    //     .lst_concat(&[fds.column("rhs")?.clone()])?;
-    //
-    // let stripped_partition_of = |cols: Series| {
-    //     let groups = full_df
-    //         .clone()
-    //         .groupby(cols.utf8()?.into_iter().map(Option::unwrap))?
-    //         .select(["id"])
-    //         .agg_list()?;
-    //     let groups = groups.column("id_agg_list")?;
-    //     let groups = groups.filter(&groups.list()?.lst_lengths().gt(1))?;
-    //     Ok(groups)
-    // };
-    //
-    // dbg!(joined.try_apply(stripped_partition_of)?);
 
     Ok(())
 }
