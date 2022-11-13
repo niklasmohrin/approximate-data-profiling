@@ -5,6 +5,7 @@ use std::{
 
 use anyhow::bail;
 use polars::prelude::*;
+use rayon::prelude::*;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -31,6 +32,33 @@ struct StrippedPartition {
 }
 
 impl StrippedPartition {
+    pub fn new_for_column_in(column_name: &str, relation: &DataFrame) -> anyhow::Result<Self> {
+        let groups = relation
+            .groupby([column_name])?
+            .take_groups()
+            .as_list_chunked();
+        let non_trivial = groups.lst_lengths().gt(1);
+
+        let partitions: Vec<HashSet<usize>> = groups
+            .filter(&non_trivial)?
+            .par_iter()
+            .map(|index_series| {
+                index_series
+                    .expect("Index series should not be null")
+                    .u32()
+                    .expect("Index series should have u32 dtype.")
+                    .into_no_null_iter()
+                    .map(|index| index.try_into().unwrap())
+                    .collect()
+            })
+            .collect();
+
+        Ok(Self {
+            columns: HashSet::from([column_name.to_owned()]),
+            partitions,
+        })
+    }
+
     pub fn product_in(&self, other: &Self, relation: &DataFrame) -> Self {
         let mut partitions = Vec::new();
 
@@ -78,31 +106,8 @@ fn main() -> anyhow::Result<()> {
 
     let base_partitions: Vec<StrippedPartition> = full_df
         .iter()
-        .map(|column| {
-            let groups = full_df.groupby([column.name()]).unwrap().groups().unwrap();
-            let groups: Vec<HashSet<usize>> = groups
-                .column("groups")
-                .unwrap()
-                .list()
-                .unwrap()
-                .into_no_null_iter()
-                .filter(|series| series.len() > 1)
-                .map(|series| {
-                    series
-                        .u32()
-                        .unwrap()
-                        .into_no_null_iter()
-                        .map(|x| x as usize)
-                        .collect()
-                })
-                .collect();
-
-            StrippedPartition {
-                columns: HashSet::from([column.name().to_owned()]),
-                partitions: groups,
-            }
-        })
-        .collect();
+        .map(|column| StrippedPartition::new_for_column_in(column.name(), &full_df))
+        .collect::<Result<_, _>>()?;
 
     let stripped_partition_of = |cols: &[&str]| -> StrippedPartition {
         let mut col_parts = base_partitions
@@ -115,7 +120,7 @@ fn main() -> anyhow::Result<()> {
     let fd_file = fs::read_to_string(fds_path)?;
     let fds: Vec<Line> = fd_file
         .lines()
-        .map(|line| serde_json::from_str(line))
+        .map(serde_json::from_str)
         .collect::<Result<_, _>>()?;
 
     let mut error_counts: Vec<usize> = fds
