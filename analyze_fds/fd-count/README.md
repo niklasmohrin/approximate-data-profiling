@@ -1,0 +1,1 @@
+Run from project root folder (top level repo folder) with data in `data` folder or provide arguments to `main.py` (`-p` path to folder, `-s` list of sources)
