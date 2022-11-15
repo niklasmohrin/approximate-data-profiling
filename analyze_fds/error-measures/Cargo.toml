@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0.66"
+clap = { version = "4.0.23", features = ["derive"] }
 polars = { version = "0.25.1", features = ["lazy", "json", "dtype-full", "describe"] }
 rayon = "1.5.3"
 serde = { version = "1.0.147", features = ["derive"] }
