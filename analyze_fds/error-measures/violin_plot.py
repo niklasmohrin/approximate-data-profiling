@@ -11,18 +11,18 @@ def main():
     dfs = list(map(pd.read_json, sys.stdin.readlines()))
     for df in dfs:
         method = df.columns[0]
-        df: pd.DataFrame
         df.rename(columns={method: "error"}, inplace=True)
         df["method"] = method
 
     data: pd.DataFrame = pd.concat(dfs)
     data["method"] = data["method"].astype("category")
 
-    _, axs = plt.subplots(ncols=2)
-    sns.violinplot(data=data, x="error", y="method", cut=0, scale="count", ax=axs[0])
-    axs[0].set_title("Scale: Count")
-    sns.violinplot(data=data, x="error", y="method", cut=0, scale="width", ax=axs[1])
-    axs[1].set_title("Scale: Width")
+    _, axs = plt.subplots(ncols=2, figsize=(17, 7))
+    for ax, scale in zip(axs, ["count", "width"]):
+        sns.violinplot(data=data, x="error", y="method", cut=0, scale=scale, ax=ax)
+        ax.set_title(f"Scale: {scale}")
+
+    plt.tight_layout()
     plt.show()
 
 
