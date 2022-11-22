@@ -15,8 +15,8 @@ def plot_determinant_size_area(fd_counts: dict[str, list[int]]):
 
     # Set labels and legend
     plt.gca().legend(title='Data Source')
-    plt.gca().set_xlabel('Relative number of FDs')
-    plt.gca().set_ylabel(f'Size of Determinant')
+    plt.gca().set_ylabel('Number of FDs')
+    plt.gca().set_xlabel(f'Size of Determinant')
     plt.gca().set_title('Number of FDs per Determinant Size')
 
 def plot_determinant_size_stacked_bar(fd_counts: dict[str, list[int]], *, normalize_fdcount=False):
@@ -31,8 +31,8 @@ def plot_determinant_size_stacked_bar(fd_counts: dict[str, list[int]], *, normal
 
     # Set labels and legend
     plt.gca().legend(title='Data Source')
-    plt.gca().set_ylabel('Relative number of FDs')
-    plt.gca().set_xlabel(f'Size of Determinant ({"abs, normalized" if normalize_fdcount else "log"})')
+    plt.gca().set_xlabel(f'Number of FDs ({"abs, normalized" if normalize_fdcount else "log"})')
+    plt.gca().set_ylabel(f'Size of Determinant')
     plt.gca().set_title('Number of FDs per Determinant Size')
 
 
