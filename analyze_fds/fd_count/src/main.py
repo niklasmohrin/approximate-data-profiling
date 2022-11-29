@@ -7,12 +7,13 @@ from fd_count import (
     plot_determinant_size_stacked_bar,
 )
 from load import load_fds
+from pathlib import Path
 
 DATAPATH = "data/"
 
 
 def main():
-    files_to_plot = ["full", "random_10", "kmeans_10"]
+    files_to_plot = []
 
     parser = ArgumentParser()
     parser.add_argument(
@@ -20,15 +21,12 @@ def main():
         "--data-sources",
         default=files_to_plot,
         nargs="+",
-        help="List of names of data sources (without json)",
-    )
-    parser.add_argument(
-        "-p", "--data-path", default=DATAPATH, help="Path to folder of data"
+        help="Path to files to plot",
     )
     parser.add_argument("--save", action="store_true", help="If plots should be saved")
     args = parser.parse_args()
 
-    determinant_size_counts = load_and_count(args.data_path, args.data_sources)
+    determinant_size_counts = load_and_count(args.data_sources)
 
     plot_determinant_size_area(determinant_size_counts)
     plot_determinant_size_stacked_bar(determinant_size_counts)
@@ -41,11 +39,12 @@ def main():
         plt.show()
 
 
-def load_and_count(path: str, data_sources: list[str]):
+def load_and_count(data_sources: list[str]):
     determinant_size_counts = {}
     for idx, data_source in enumerate(data_sources):
-        fds = load_fds(path, data_source)
-        determinant_size_counts[data_source] = get_sizecount(fds)
+        fds = load_fds(data_source)
+        data_source_name = Path(data_source).name.split('_', maxsplit=2)[-1]
+        determinant_size_counts[data_source_name] = get_sizecount(fds)
 
     return determinant_size_counts
 

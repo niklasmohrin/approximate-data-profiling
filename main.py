@@ -1,27 +1,47 @@
 #!/usr/bin/env python3
 
+import errno
+import itertools
 import os
+from pathlib import Path
 import subprocess
+from datetime import datetime
 
 # Constants
+data_dir = "source"
 results_dir = "results"
 
+METANOME_CLI_LOCATION = "metanome/cli.jar"
+METANOME_ALGORITHM_LOCATION = "metanome/hyfd.jar"
+
 # Cmds
-build_sample_cmd = lambda m, f, p: f"python sample.py --method {m} --factor {f} {p}"
-sample_cmd = "python sample.py --method random --factor 0.15 source/adult.csv"
-
-mv = lambda old_path, new_path: f"mv {old_path} {new_path}"
-
-build_plot_cmd = (
-    lambda fd_json_folder, sources: f"python analyze_fds/fd_count/src/main.py --save --data-path {fd_json_folder} --data-sources {' '.join(sources)}"
+build_sample_cmd = (
+    lambda m, f, table: f"python sample.py --method {m} --factor {f} {table}"
 )
 
 
-def mv_to_results(file_name: str, path: str = None):
-    src_path = os.path.join(path, file_name) if path else file_name
-    target_path = os.path.join(results_dir, file_name)
+def build_metanome_cmd(table_path: str, output_path: str):
+    return f"""java -Dtinylog.level=trace \
+        -cp {METANOME_CLI_LOCATION}:{METANOME_ALGORITHM_LOCATION} de.metanome.cli.App \
+        --algorithm de.metanome.algorithms.hyfd.HyFD \
+        --files {table_path} --file-key INPUT_GENERATOR \
+        -o file:{output_path}
+    """
 
-    subprocess.run(mv(src_path, target_path), shell=True)
+
+def build_fd_error_cmd(
+    mode: str, table_path: str, fd_jsons: list[Path], out_file: str = "errors.json"
+):
+    return f"""cargo run --manifest-path analyze_fds/error-measures/Cargo.toml --release -- '{str(table_path)}' {mode} '{"' '".join(map(str, fd_jsons))}' > {out_file}"""
+
+def build_violin_plot_cmd(errors_json_path: str):
+    return f"cat {errors_json_path} | ./analyze_fds/error-measures/violin_plot.py"
+
+build_mv_cmd = lambda old_path, new_path: f"mv {str(old_path)} {str(new_path)}"
+
+build_plot_cmd = (
+    lambda fd_json_sources: f"python analyze_fds/fd_count/src/main.py --save --data-sources {' '.join(map(str, fd_json_sources))}"
+)
 
 
 def run_cmd_get_last_line(cmd: str):
@@ -32,19 +52,91 @@ def run_cmd_get_last_line(cmd: str):
     return out.decode().split("\n")[-2]
 
 
+def runShell(cmd: str):
+    return subprocess.run(cmd, shell=True)
+
+
+def create_results_dir(folder_name: str):
+    mydir = os.path.join(
+        os.getcwd(),
+        results_dir,
+        datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S_{folder_name}"),
+    )
+    try:
+        os.makedirs(mydir)
+    except OSError as e:
+        if e.errno != errno.EEXIST:
+            raise
+
+    return mydir
+
+
 def main():
-    # Sample something
-    sample_path = run_cmd_get_last_line(sample_cmd)
+    experiment_dir = create_results_dir("hyfd")
 
-    # TODO: Run Metanome CLI
+    source_table = os.path.join(data_dir, "adult.csv")
 
-    # TODO: Rust not working on my machine :D
+    sample_methods = ["random", "kmeans"]
+    sample_factors = [0.001, 1]
+
+    sample_paths: list[Path] = []
+    fd_paths: list[Path] = []
+
+    def mv_to_results(file_path: str, new_name: str = None) -> Path:
+        src_path = Path(file_path)
+        target_path = Path(
+            experiment_dir, new_name if new_name is not None else src_path.name
+        )
+
+        subprocess.run(build_mv_cmd(str(src_path), str(target_path)), shell=True)
+        return target_path
+
+    ### Evaluation for each sampling method ###
+    for method, factor in itertools.product(sample_methods, sample_factors):
+        if method == "kmeans" and factor == 1:
+            continue
+
+        print(f"Sample {method} with {factor}")
+        run_time_str = datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")
+        # Sample something
+        sample_path = Path(
+            run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
+        )
+
+        # Move sample to unique location
+        new_sample_name = f"{run_time_str}_{sample_path.name}"
+        new_sample_path = mv_to_results(sample_path, new_sample_name)
+        sample_paths.append(new_sample_path)
+
+        # Run Metanome for FD Detection
+        fd_file_name = f"{run_time_str}_{sample_path.stem}"
+        runShell(build_metanome_cmd(new_sample_path, fd_file_name))
+
+        # Metanome appends _fds to file name
+        fd_file_after_metanome = Path(
+            "results", f"{run_time_str}_{sample_path.stem}_fds"
+        )
+        fd_file_path = mv_to_results(fd_file_after_metanome, fd_file_name)
+        fd_paths.append(fd_file_path)
+
+
+    ### Evaluations for all sampling methods / Comparison ###
+    errors_json_path = os.path.join(experiment_dir, "errors.json")
+    runShell(
+        build_fd_error_cmd("output-errors", source_table, fd_paths, errors_json_path)
+    )
+    runShell(
+        build_violin_plot_cmd(errors_json_path)
+    )
 
     # save fd_count plot
-    plot_cmd = build_plot_cmd("data", ["full", "kmeans_10"])
-    plot_file_path = run_cmd_get_last_line(plot_cmd)
-
-    mv_to_results(plot_file_path)
+    plot_cmd = build_plot_cmd(fd_paths)
+    plot_file_path = Path(run_cmd_get_last_line(plot_cmd))
+    runShell(
+        build_mv_cmd(
+            str(plot_file_path), os.path.join(experiment_dir, plot_file_path.name)
+        )
+    )
 
 
 if __name__ == "__main__":

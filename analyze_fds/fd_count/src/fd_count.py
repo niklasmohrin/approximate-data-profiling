@@ -40,6 +40,8 @@ def plot_determinant_size_stacked_bar(
     )
     plt.gca().set_ylabel(f"Size of Determinant")
     plt.gca().set_title("Number of FDs per Determinant Size")
+    plt.legend(loc=(1.05, 0.1))
+    plt.tight_layout()
 
 
 def get_sizecount(fds: dict[str, list[str]]) -> list[int]:
