@@ -10,6 +10,12 @@ pub struct StrippedPartition {
 }
 
 impl StrippedPartition {
+    pub fn new_initial_for(relation_size: usize) -> Self {
+        Self {
+            columns: HashSet::new(),
+            partitions: vec![(0..relation_size).collect()],
+        }
+    }
     pub fn new_for_column_in(column_name: &str, relation: &DataFrame) -> anyhow::Result<Self> {
         let groups = relation
             .groupby([column_name])?

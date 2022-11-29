@@ -49,10 +49,10 @@ fn main() -> anyhow::Result<()> {
         cache
             .entry(cols)
             .or_insert_with_key(|cols| {
-                let mut col_parts = base_partitions
+                let col_parts = base_partitions
                     .iter()
                     .filter(|p| cols.contains(p.columns.iter().next().unwrap()));
-                let initial = col_parts.next().unwrap().clone();
+                let initial = StrippedPartition::new_initial_for(full_df.height());
                 col_parts.fold(initial, |a, b| a.product_in(b, &full_df))
             })
             .clone()
