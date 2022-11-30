@@ -26,6 +26,8 @@ def main():
             string_cols = string_df.columns
             num_df = df.copy()
             num_df[string_cols] = OrdinalEncoder().fit_transform(string_df)
+            # "Random" value to override missing values for kmeans sampling
+            num_df.fillna(-9898989, inplace=True)
 
             _centroids, labels, _inertia = k_means(num_df, out_size)
             indices = [-1] * out_size

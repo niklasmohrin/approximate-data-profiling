@@ -43,7 +43,7 @@ def load_and_count(data_sources: list[str]):
     determinant_size_counts = {}
     for idx, data_source in enumerate(data_sources):
         fds = load_fds(data_source)
-        data_source_name = Path(data_source).name.split('_', maxsplit=2)[-1]
+        data_source_name = Path(data_source).name.rsplit('_', maxsplit=1)[0]
         determinant_size_counts[data_source_name] = get_sizecount(fds)
 
     return determinant_size_counts

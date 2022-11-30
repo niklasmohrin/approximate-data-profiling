@@ -1,12 +1,27 @@
 #!/usr/bin/env python3
 
+from dataclasses import dataclass
 import errno
 import itertools
 import os
+import csv
 from pathlib import Path
 import subprocess
 from datetime import datetime
 
+@dataclass
+class Dataset:
+    name: str
+    filename: str
+    separator: str = ';'
+
+AdultsDataset = Dataset('adults', 'adult.csv')
+FDR30Dataset = Dataset('fdr30', 'fdr30.csv', separator=',')
+LetterDataset = Dataset('letter', 'letter.csv', separator=',')
+Plista1K = Dataset('plista1k', 'plista_1k.csv')
+
+
+dataset = LetterDataset
 # Constants
 data_dir = "source"
 results_dir = "results"
@@ -20,11 +35,11 @@ build_sample_cmd = (
 )
 
 
-def build_metanome_cmd(table_path: str, output_path: str):
+def build_metanome_cmd(table_path: str, output_path: str, separator: str):
     return f"""java -Dtinylog.level=trace \
         -cp {METANOME_CLI_LOCATION}:{METANOME_ALGORITHM_LOCATION} de.metanome.cli.App \
         --algorithm de.metanome.algorithms.hyfd.HyFD \
-        --files {table_path} --file-key INPUT_GENERATOR \
+        --files {table_path} --file-key INPUT_GENERATOR --separator "{separator}"\
         -o file:{output_path}
     """
 
@@ -42,6 +57,12 @@ build_mv_cmd = lambda old_path, new_path: f"mv {str(old_path)} {str(new_path)}"
 build_plot_cmd = (
     lambda fd_json_sources: f"python analyze_fds/fd_count/src/main.py --save --data-sources {' '.join(map(str, fd_json_sources))}"
 )
+
+def build_uniqueness_cmd(experiment_dir: str):
+    return f"""
+        python analyze_fds/fd_count/src/unique_values.py -s "{str(experiment_dir)}"
+        python analyze_fds/fd_count/src/plot_uniques.py -s {os.path.join(str(experiment_dir), "uniques.csv")}
+    """
 
 
 def run_cmd_get_last_line(cmd: str):
@@ -72,12 +93,21 @@ def create_results_dir(folder_name: str):
 
 
 def main():
-    experiment_dir = create_results_dir("hyfd")
+    experiment_dir = create_results_dir(dataset.name)
+    source_table = os.path.join(data_dir, dataset.filename)
 
-    source_table = os.path.join(data_dir, "adult.csv")
+    # Rewrite separator, if not the default
+    if dataset.separator != Dataset.separator:
+        bak_path = source_table + '.sepbak'
+        if not os.path.exists(bak_path):
+            runShell(build_mv_cmd(source_table, bak_path))
+            reader = csv.reader(open(bak_path, newline=None), delimiter=dataset.separator)
+            writer = csv.writer(open(source_table, 'w'), delimiter=Dataset.separator)
+            writer.writerows(reader)
+        dataset.separator = Dataset.separator
 
     sample_methods = ["random", "kmeans"]
-    sample_factors = [0.001, 1]
+    sample_factors = [0.01, 0.1, 1]
 
     sample_paths: list[Path] = []
     fd_paths: list[Path] = []
@@ -97,26 +127,31 @@ def main():
             continue
 
         print(f"Sample {method} with {factor}")
-        run_time_str = datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")
+        # TODO: Active when names would be not unique / count?
+        run_time_str = '' # f"{datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")}_"
         # Sample something
         sample_path = Path(
             run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
         )
 
+        if not os.path.exists(sample_path):
+            print(f'Sampling {method} @ {factor} failed. Skipping.')
+            continue
+
         # Move sample to unique location
-        new_sample_name = f"{run_time_str}_{sample_path.name}"
+        new_sample_name = f"{run_time_str}{sample_path.name}"
         new_sample_path = mv_to_results(sample_path, new_sample_name)
         sample_paths.append(new_sample_path)
 
         # Run Metanome for FD Detection
-        fd_file_name = f"{run_time_str}_{sample_path.stem}"
-        runShell(build_metanome_cmd(new_sample_path, fd_file_name))
+        fd_file_name = f"{run_time_str}{sample_path.stem}"
+        runShell(build_metanome_cmd(new_sample_path, fd_file_name, dataset.separator))
 
         # Metanome appends _fds to file name
         fd_file_after_metanome = Path(
-            "results", f"{run_time_str}_{sample_path.stem}_fds"
+            "results", f"{fd_file_name}_fds"
         )
-        fd_file_path = mv_to_results(fd_file_after_metanome, fd_file_name)
+        fd_file_path = mv_to_results(fd_file_after_metanome)
         fd_paths.append(fd_file_path)
 
 
@@ -128,6 +163,7 @@ def main():
     runShell(
         build_violin_plot_cmd(errors_json_path)
     )
+    mv_to_results('violinplot.pdf')
 
     # save fd_count plot
     plot_cmd = build_plot_cmd(fd_paths)
@@ -137,6 +173,9 @@ def main():
             str(plot_file_path), os.path.join(experiment_dir, plot_file_path.name)
         )
     )
+
+    # Save uniqueness plots
+    runShell(build_uniqueness_cmd(experiment_dir))
 
 
 if __name__ == "__main__":
