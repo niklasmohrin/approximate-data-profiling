@@ -1,4 +1,7 @@
-use std::{collections::HashSet, mem};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 use polars::prelude::*;
 use rayon::prelude::*;
@@ -73,5 +76,19 @@ impl StrippedPartition {
             columns: self.columns.union(&other.columns).cloned().collect(),
             partitions,
         }
+    }
+
+    /// Number elements in each cluster in the partition - including clusters of size 1
+    pub fn add_cluster_size_counts_to(
+        &self,
+        cluster_sizes: &mut HashMap<usize, usize>,
+        relation_size: usize,
+    ) {
+        let mut total_seen_elements = 0;
+        for partition in &self.partitions {
+            total_seen_elements += partition.len();
+            *cluster_sizes.entry(partition.len()).or_default() += 1;
+        }
+        *cluster_sizes.entry(1).or_default() += relation_size - total_seen_elements;
     }
 }

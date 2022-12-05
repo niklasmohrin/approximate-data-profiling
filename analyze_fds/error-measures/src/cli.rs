@@ -22,6 +22,9 @@ pub enum Command {
         gold_fd_path: PathBuf,
         fds: Vec<PathBuf>,
     },
+    OutputClusterSizes {
+        fds: Vec<PathBuf>,
+    },
 }
 
 impl Command {
@@ -29,7 +32,8 @@ impl Command {
         match self {
             Self::ErrorSummary { fds }
             | Self::OutputErrors { fds }
-            | Self::OutputApproximationMetrics { fds, .. } => fds,
+            | Self::OutputApproximationMetrics { fds, .. }
+            | Self::OutputClusterSizes { fds } => fds,
         }
     }
 }
