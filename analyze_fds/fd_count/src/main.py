@@ -1,4 +1,5 @@
 from argparse import ArgumentParser
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 from fd_count import (
@@ -7,7 +8,6 @@ from fd_count import (
     plot_determinant_size_stacked_bar,
 )
 from load import load_fds
-from pathlib import Path
 
 DATAPATH = "data/"
 
@@ -43,7 +43,7 @@ def load_and_count(data_sources: list[str]):
     determinant_size_counts = {}
     for idx, data_source in enumerate(data_sources):
         fds = load_fds(data_source)
-        data_source_name = Path(data_source).name.rsplit('_', maxsplit=1)[0]
+        data_source_name = Path(data_source).name.rsplit("_", maxsplit=1)[0]
         determinant_size_counts[data_source_name] = get_sizecount(fds)
 
     return determinant_size_counts

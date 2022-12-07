@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 
-from argparse import ArgumentParser
 import os
-import pandas as pd
+from argparse import ArgumentParser
 
+import pandas as pd
 from load import load_fd_list
 
 

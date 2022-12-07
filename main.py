@@ -1,24 +1,26 @@
 #!/usr/bin/env python3
 
-from dataclasses import dataclass
+import csv
 import errno
 import itertools
 import os
-import csv
-from pathlib import Path
 import subprocess
+from dataclasses import dataclass
 from datetime import datetime
+from pathlib import Path
+
 
 @dataclass
 class Dataset:
     name: str
     filename: str
-    separator: str = ';'
+    separator: str = ";"
 
-AdultsDataset = Dataset('adults', 'adult.csv')
-FDR30Dataset = Dataset('fdr30', 'fdr30.csv', separator=',')
-LetterDataset = Dataset('letter', 'letter.csv', separator=',')
-Plista1K = Dataset('plista1k', 'plista_1k.csv')
+
+AdultsDataset = Dataset("adults", "adult.csv")
+FDR30Dataset = Dataset("fdr30", "fdr30.csv", separator=",")
+LetterDataset = Dataset("letter", "letter.csv", separator=",")
+Plista1K = Dataset("plista1k", "plista_1k.csv")
 
 
 dataset = LetterDataset
@@ -49,14 +51,17 @@ def build_fd_error_cmd(
 ):
     return f"""cargo run --manifest-path analyze_fds/error-measures/Cargo.toml --release -- '{str(table_path)}' {mode} '{"' '".join(map(str, fd_jsons))}' > {out_file}"""
 
+
 def build_violin_plot_cmd(errors_json_path: str):
     return f"cat {errors_json_path} | ./analyze_fds/error-measures/violin_plot.py"
+
 
 build_mv_cmd = lambda old_path, new_path: f"mv {str(old_path)} {str(new_path)}"
 
 build_plot_cmd = (
     lambda fd_json_sources: f"python analyze_fds/fd_count/src/main.py --save --data-sources {' '.join(map(str, fd_json_sources))}"
 )
+
 
 def build_uniqueness_cmd(experiment_dir: str):
     return f"""
@@ -98,16 +103,18 @@ def main():
 
     # Rewrite separator, if not the default
     if dataset.separator != Dataset.separator:
-        bak_path = source_table + '.sepbak'
+        bak_path = source_table + ".sepbak"
         if not os.path.exists(bak_path):
             runShell(build_mv_cmd(source_table, bak_path))
-            reader = csv.reader(open(bak_path, newline=None), delimiter=dataset.separator)
-            writer = csv.writer(open(source_table, 'w'), delimiter=Dataset.separator)
+            reader = csv.reader(
+                open(bak_path, newline=None), delimiter=dataset.separator
+            )
+            writer = csv.writer(open(source_table, "w"), delimiter=Dataset.separator)
             writer.writerows(reader)
         dataset.separator = Dataset.separator
 
-    sample_methods = ["random", "kmeans"]
-    sample_factors = [0.01, 0.1, 1]
+    sample_methods = ["random"]
+    sample_factors = [0.01, 1]
 
     sample_paths: list[Path] = []
     fd_paths: list[Path] = []
@@ -128,14 +135,14 @@ def main():
 
         print(f"Sample {method} with {factor}")
         # TODO: Active when names would be not unique / count?
-        run_time_str = '' # f"{datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")}_"
+        run_time_str = ""  # f"{datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")}_"
         # Sample something
         sample_path = Path(
             run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
         )
 
         if not os.path.exists(sample_path):
-            print(f'Sampling {method} @ {factor} failed. Skipping.')
+            print(f"Sampling {method} @ {factor} failed. Skipping.")
             continue
 
         # Move sample to unique location
@@ -148,22 +155,17 @@ def main():
         runShell(build_metanome_cmd(new_sample_path, fd_file_name, dataset.separator))
 
         # Metanome appends _fds to file name
-        fd_file_after_metanome = Path(
-            "results", f"{fd_file_name}_fds"
-        )
+        fd_file_after_metanome = Path("results", f"{fd_file_name}_fds")
         fd_file_path = mv_to_results(fd_file_after_metanome)
         fd_paths.append(fd_file_path)
-
 
     ### Evaluations for all sampling methods / Comparison ###
     errors_json_path = os.path.join(experiment_dir, "errors.json")
     runShell(
         build_fd_error_cmd("output-errors", source_table, fd_paths, errors_json_path)
     )
-    runShell(
-        build_violin_plot_cmd(errors_json_path)
-    )
-    mv_to_results('violinplot.pdf')
+    runShell(build_violin_plot_cmd(errors_json_path))
+    mv_to_results("violinplot.pdf")
 
     # save fd_count plot
     plot_cmd = build_plot_cmd(fd_paths)
