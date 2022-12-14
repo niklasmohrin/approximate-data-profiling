@@ -127,13 +127,16 @@ fn main() -> anyhow::Result<()> {
                     fds.iter().filter(|fd| gold_set.contains(fd)).count();
                 let completeness = discovered_gold_fd_count as f64 / gold.len() as f64;
 
-                let error_counts = fds.iter().map(|fd| error_of(fd, &mut cache));
-                let correct_fd_count = error_counts.filter(|&err| err == 0).count();
+                let errors: Vec<_> = fds.iter().map(|fd| error_of(fd, &mut cache)).collect();
+                let correct_fd_count = errors.iter().filter(|&&err| err == 0).count();
                 let correctness = correct_fd_count as f64 / fds.len() as f64;
+
+                let error_sum = errors.iter().sum::<usize>() as f64 / fds.len() as f64;
 
                 println!("File: {}", fd_path.display());
                 println!("  Completeness: {}", completeness);
                 println!("  Correctness:  {}", correctness);
+                println!("  G3 Sum:       {}", error_sum);
             }
             Command::OutputClusterSizes { .. } => {
                 let mut determinant_cluster_sizes = HashMap::new();
