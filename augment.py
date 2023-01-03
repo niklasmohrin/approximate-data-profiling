@@ -56,6 +56,17 @@ def main():
                 ],
                 axis=1,
             )
+        case Method.smotenc:
+            x = df.copy()
+            x.loc[len(x)] = x.iloc[len(x) - 1]
+            y = np.zeros((len(x), 1))
+            y[len(y) - 1] = 1
+            out_x, out_y = SMOTENC(
+                categorical_features=[col in string_df.columns for col in x.columns],
+                sampling_strategy={0: int(args.factor * len(df)), 1: 1},
+            ).fit_resample(x, y)
+            out_x = out_x[out_y == 0]
+            out_df = pd.DataFrame(out_x, columns=x.columns)
         case _:
             raise NotImplementedError
 
