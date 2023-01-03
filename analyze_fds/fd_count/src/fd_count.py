@@ -28,15 +28,17 @@ def plot_determinant_size_stacked_bar(
     if normalize_fdcount:
         df = df.div(df.sum(axis=1), axis=0)
 
-    df.transpose().plot(kind="barh", rot=0, logx=(not normalize_fdcount))
+    log_x_axis = False and not normalize_fdcount
+    df.transpose().plot(kind="barh", rot=0, logx=log_x_axis)
     if normalize_fdcount:
         # Set Percentage as xaxis formatter, with values between 0-1
         plt.gca().yaxis.set_major_formatter(mtick.PercentFormatter(1))
 
     # Set labels and legend
     plt.gca().legend(title="Data Source")
+    x_add_description = "abs, normalized" if normalize_fdcount else ("log" if log_x_axis  else None)
     plt.gca().set_xlabel(
-        f'Number of FDs ({"abs, normalized" if normalize_fdcount else "log"})'
+        f'Number of FDs {f"({x_add_description})" if x_add_description else ""}'
     )
     plt.gca().set_ylabel(f"Size of Determinant")
     plt.gca().set_title("Number of FDs per Determinant Size")

@@ -28,13 +28,18 @@ def main():
     min_y = df["uniques_determinant"].min() - offset
     max_y = df["uniques_determinant"].max() + offset
     for m in methods:
-        df.where(df["method"] == m).plot.hexbin(
+        target = df.where(df["method"] == m)
+        max_error = target["error"].max()
+        cinterval = [0, 0.1] if max_error == 0 else None
+        target.plot.hexbin(
             x="uniques_dependant",
             y="uniques_determinant",
             C="error",
             title="Correlation of Error to uniques in determinants and dependant",
             xlim=[min_x, max_x],
             ylim=[min_y, max_y],
+            clim=cinterval,
+            cmap="plasma"
         )
         plt.suptitle(m)
         plt.tight_layout()

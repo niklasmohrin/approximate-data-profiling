@@ -14,7 +14,7 @@ def main():
     parser.add_argument("--factor", type=float)
     parser.add_argument("path", type=Path)
     args = parser.parse_args()
-    df = pd.read_csv(args.path, sep=";", header=None)
+    df = pd.read_csv(args.path, sep=";")
     out_size = int(len(df) * args.factor)
     print(f"{len(df)=} {out_size=}")
 
@@ -22,7 +22,7 @@ def main():
         case "random":
             out_df = df.sample(out_size)
         case "kmeans":
-            string_df = df.select_dtypes(exclude="number")
+            string_df = df.select_dtypes(exclude="number").astype(str)
             string_cols = string_df.columns
             num_df = df.copy()
             num_df[string_cols] = OrdinalEncoder().fit_transform(string_df)
@@ -39,7 +39,7 @@ def main():
     out_path = f"{args.path.name.removesuffix('.csv')}_{args.method}_{args.factor}.csv"
     out_df.to_csv(
         out_path,
-        header=None,
+        # header=None,
         sep=";",
         index=False,
     )

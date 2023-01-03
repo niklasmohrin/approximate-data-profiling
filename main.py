@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 
 
+
 @dataclass
 class Dataset:
     name: str
@@ -21,9 +22,17 @@ AdultsDataset = Dataset("adults", "adult.csv")
 FDR30Dataset = Dataset("fdr30", "fdr30.csv", separator=",")
 LetterDataset = Dataset("letter", "letter.csv", separator=",")
 Plista1K = Dataset("plista1k", "plista_1k.csv")
+TPCHLineItem = Dataset("tpc-lineitem", "TPC-H/tpch_lineitem.csv")
+TPCHCustomer = Dataset("tpc-customer", "TPC-H/tpch_customer.csv")
+TPCHOrder = Dataset("tpc-orders", "TPC-H/tpch_orders.csv")
+TPCHOrdersCustomer = Dataset("tpc-orders-customer", "TPC-H/tpch_orders_customer.csv")
 
 
-dataset = LetterDataset
+datasets = [
+    TPCHOrdersCustomer,
+    AdultsDataset,
+]
+dataset = datasets[0]
 # Constants
 data_dir = "source"
 results_dir = "results"
@@ -41,7 +50,8 @@ def build_metanome_cmd(table_path: str, output_path: str, separator: str):
     return f"""java -Dtinylog.level=trace \
         -cp {METANOME_CLI_LOCATION}:{METANOME_ALGORITHM_LOCATION} de.metanome.cli.App \
         --algorithm de.metanome.algorithms.hyfd.HyFD \
-        --files {table_path} --file-key INPUT_GENERATOR --separator "{separator}"\
+        --files {table_path} --file-key INPUT_GENERATOR \
+        --header --separator "{separator}"\
         -o file:{output_path}
     """
 
@@ -103,7 +113,7 @@ def main():
 
     # Rewrite separator, if not the default
     if dataset.separator != Dataset.separator:
-        bak_path = source_table + ".sepbak"
+        bak_path = source_table + ".bak"
         if not os.path.exists(bak_path):
             runShell(build_mv_cmd(source_table, bak_path))
             reader = csv.reader(
@@ -113,8 +123,9 @@ def main():
             writer.writerows(reader)
         dataset.separator = Dataset.separator
 
-    sample_methods = ["random"]
-    sample_factors = [0.01, 1]
+    sample_methods = ["full", "random"]  # , "kmeans"
+    sample_factors = [0.01, 0.1, 1]
+    # sample_factors = [1]
 
     sample_paths: list[Path] = []
     fd_paths: list[Path] = []
@@ -130,16 +141,21 @@ def main():
 
     ### Evaluation for each sampling method ###
     for method, factor in itertools.product(sample_methods, sample_factors):
-        if method == "kmeans" and factor == 1:
+        # Only 
+        if method != "full" and factor == 1 or method == "full" and factor != 1:
             continue
 
         print(f"Sample {method} with {factor}")
         # TODO: Active when names would be not unique / count?
         run_time_str = ""  # f"{datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")}_"
         # Sample something
-        sample_path = Path(
-            run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
-        )
+        if method != "full":
+            sample_path = Path(
+                run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
+            )
+        else:
+            sample_path = Path(experiment_dir, 'full.csv')
+            runShell(f"cp {source_table} {sample_path}")
 
         if not os.path.exists(sample_path):
             print(f"Sampling {method} @ {factor} failed. Skipping.")
@@ -164,6 +180,11 @@ def main():
     runShell(
         build_fd_error_cmd("output-errors", source_table, fd_paths, errors_json_path)
     )
+    clusters_path = os.path.join(experiment_dir, "clusters.json")
+    runShell(
+        build_fd_error_cmd("output-cluster-sizes", source_table, fd_paths, clusters_path)
+    )
+
     runShell(build_violin_plot_cmd(errors_json_path))
     mv_to_results("violinplot.pdf")
 
@@ -181,4 +202,6 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    for ds in datasets:
+        dataset = ds
+        main()

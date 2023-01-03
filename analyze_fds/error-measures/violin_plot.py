@@ -23,7 +23,7 @@ def main():
         ax.set_title(f"Scale: {scale}")
 
     plt.tight_layout()
-    plt.show()
+    plt.savefig('violinplot.pdf')
 
 
 if __name__ == "__main__":
