@@ -8,6 +8,7 @@ import pandas as pd
 import seaborn as sns
 import numpy as np
 
+
 def plot_clusters(method, tuple_list):
     # save the names and their respective scores separately
     # reverse the tuples to go from most frequent to least frequent
@@ -15,13 +16,14 @@ def plot_clusters(method, tuple_list):
     count = list(zip(*tuple_list))[1]
     x_pos = np.arange(len(size))
     print(size)
-    plt.bar(x_pos, count,align='center')
+    plt.bar(x_pos, count, align="center")
     plt.xticks(x_pos, size)
     plt.xscale("log")
-    plt.ylabel('Number of clusters')
+    plt.ylabel("Number of clusters")
 
     plt.title(method)
     plt.savefig(method + "_clusters.pdf")
+
 
 def main():
     dfs_json = list(map(json.loads, sys.stdin.readlines()))

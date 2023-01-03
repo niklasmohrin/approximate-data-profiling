@@ -36,7 +36,9 @@ def plot_determinant_size_stacked_bar(
 
     # Set labels and legend
     plt.gca().legend(title="Data Source")
-    x_add_description = "abs, normalized" if normalize_fdcount else ("log" if log_x_axis  else None)
+    x_add_description = (
+        "abs, normalized" if normalize_fdcount else ("log" if log_x_axis else None)
+    )
     plt.gca().set_xlabel(
         f'Number of FDs {f"({x_add_description})" if x_add_description else ""}'
     )

@@ -9,11 +9,7 @@ from load import load_fd_list
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument(
-        "-s",
-        "--data-source",
-        help="Path to files to plot",
-    )
+    parser.add_argument("-s", "--data-source", help="Path to files to plot")
     args = parser.parse_args()
 
     result_df = pd.DataFrame(
@@ -28,7 +24,9 @@ def main():
     )
 
     # Load FDs
-    with open(os.path.join(args.data_source, "errors.json")) as error_file,  open(os.path.join(args.data_source, "clusters.json")) as clusters_file:
+    with open(os.path.join(args.data_source, "errors.json")) as error_file, open(
+        os.path.join(args.data_source, "clusters.json")
+    ) as clusters_file:
         error_dfs = list(map(pd.read_json, error_file.readlines()))
         # cluster_dfs = list(map(pd.read_json, clusters_file.readlines()))
         # for error_df, cluster_df in zip(error_dfs, cluster_dfs):
@@ -42,8 +40,8 @@ def main():
 
             source_file = fd_file.removesuffix("_fds") + ".csv"
             source = pd.read_csv(source_file, sep=";")
-            #rename_dict = {k: f"column{k+1}" for k in source.columns}
-            #source.rename(rename_dict, inplace=True, axis=1)
+            # rename_dict = {k: f"column{k+1}" for k in source.columns}
+            # source.rename(rename_dict, inplace=True, axis=1)
 
             total_rows = len(source)
 
@@ -67,7 +65,9 @@ def main():
                     print(f"Running... {idx}")
                 dependant, determinants = fd
                 # uniques_determinant = get_uniques(source, determinants) / total_rows
-                uniques_determinant = get_uniques_sum_per_col(source, determinants) / total_rows
+                uniques_determinant = (
+                    get_uniques_sum_per_col(source, determinants) / total_rows
+                )
                 uniques_dependant = get_uniques(source, [dependant]) / total_rows
                 error = error_df.iloc[idx, 0]
                 # cluster_size = cluster_df.iloc[idx, 0]

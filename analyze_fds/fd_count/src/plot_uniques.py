@@ -8,11 +8,7 @@ import seaborn as sns
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument(
-        "-s",
-        "--data-source",
-        help="Path to unique value csv",
-    )
+    parser.add_argument("-s", "--data-source", help="Path to unique value csv")
     args = parser.parse_args()
 
     df = pd.read_csv(args.data_source)
@@ -39,7 +35,7 @@ def main():
             xlim=[min_x, max_x],
             ylim=[min_y, max_y],
             clim=cinterval,
-            cmap="plasma"
+            cmap="plasma",
         )
         plt.suptitle(m)
         plt.tight_layout()
