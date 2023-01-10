@@ -42,6 +42,7 @@ def main():
 
         out_path = Path(args.data_source).with_name(f"uniqueness_error_{m}.pdf")
         plt.savefig(out_path)
+        plt.close()
 
         # sns.barplot(df, x="method", y="uniques_determinant")
         # plt.show()

@@ -10,7 +10,8 @@ import pandas as pd
 
 
 def plot_determinant_size_area(fd_counts: dict[str, list[int]]):
-    df = pd.DataFrame.from_dict(fd_counts, orient="index")
+    # df = pd.DataFrame.from_dict(fd_counts, orient="index")
+    df = fd_counts
 
     df.transpose().plot.area()
 
@@ -20,11 +21,26 @@ def plot_determinant_size_area(fd_counts: dict[str, list[int]]):
     plt.gca().set_xlabel(f"Size of Determinant")
     plt.gca().set_title("Number of FDs per Determinant Size")
 
+def plot_stacked_bar_with_error(
+    mean: pd.DataFrame, errors: pd.DataFrame,
+):
+    mean.transpose().plot(kind="barh", rot=0, xerr=errors.transpose())
+    # Set labels and legend
+    plt.gca().legend(title="Data Source")
+    x_add_description = None
+    plt.gca().set_xlabel(
+        f'Number of FDs {f"({x_add_description})" if x_add_description else ""}'
+    )
+    plt.gca().set_ylabel(f"Size of Determinant")
+    plt.gca().set_title("Number of FDs per Determinant Size")
+    plt.legend(loc=(1.05, 0.1))
+    plt.tight_layout()
 
 def plot_determinant_size_stacked_bar(
     fd_counts: dict[str, list[int]], *, normalize_fdcount=False
 ):
     df = pd.DataFrame.from_dict(fd_counts, orient="index")
+    # df = fd_counts
     if normalize_fdcount:
         df = df.div(df.sum(axis=1), axis=0)
 

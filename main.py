@@ -33,7 +33,8 @@ def main():
 
     sample_methods = ["full", "random"]  # , "kmeans"
     sample_factors = [0.01, 1]
-    augmentation_method = 'smote'
+    sample_iterations = range(10)
+    augmentation_method = 'smotenc'
     augmentation_factor = 10.0
     # sample_factors = [1]
 
@@ -50,14 +51,14 @@ def main():
         return target_path
 
     ### Evaluation for each sampling method ###
-    for method, factor in itertools.product(sample_methods, sample_factors):
+    for method, factor, iteration in itertools.product(sample_methods, sample_factors, sample_iterations):
         # Only
-        if method != "full" and factor == 1 or method == "full" and factor != 1:
+        if method != "full" and factor == 1 or method == "full" and factor != 1 or method == "full" and iteration != 0:
             continue
 
         print(f"Sample {method} with {factor}")
         # TODO: Active when names would be not unique / count?
-        run_time_str = ""  # f"{datetime.now().strftime(f"%Y-%m-%d_%H-%M-%S")}_"
+        run_time_str = f"{iteration}_" if len(sample_iterations) > 1 else ""
         sample_path = sample_with_method(method, factor, experiment_dir, source_table)
         if not os.path.exists(sample_path):
             print(f"Sampling {method} @ {factor} failed. Skipping.")
@@ -112,6 +113,7 @@ def main():
 
     # save fd_count plot
     plot_cmd = build_plot_cmd(fd_paths)
+    print(plot_cmd)
     plot_file_path = Path(run_cmd_get_last_line(plot_cmd))
     runShell(
         build_mv_cmd(
