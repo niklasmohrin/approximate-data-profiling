@@ -1,5 +1,5 @@
 import csv
-import datetime
+from datetime import datetime
 import errno
 import os
 from pathlib import Path
@@ -10,6 +10,9 @@ from constants import METANOME_ALGORITHM_LOCATION, METANOME_CLI_LOCATION, RESULT
 
 def build_sample_cmd(method, factor, table):
     return f"python sample.py --method {method} --factor {factor} {table}"
+
+def build_augment_cmd(method, factor, table):
+    return f"python augment.py --method {method} --factor {factor} {table}"
 
 
 def build_metanome_cmd(table_path: str, output_path: str, separator: str):
@@ -83,14 +86,20 @@ def rewrite_separator(dataset, source_table):
     dataset.separator = Dataset.separator
 
 
-def sample_with_method(method, factor, experiment_dir, source_table) -> Path:
+def mutate_dataset(func, method, factor, experiment_dir, source_table) -> Path:
     # Sample something
     if method != "full":
         sample_path = Path(
-            run_cmd_get_last_line(build_sample_cmd(method, factor, source_table))
+            run_cmd_get_last_line(func(method, factor, source_table))
         )
     else:
         sample_path = Path(experiment_dir, "full.csv")
         runShell(f"cp {source_table} {sample_path}")
 
     return sample_path
+
+def sample_with_method(method, factor, experiment_dir, source_table) -> Path:
+    return mutate_dataset(build_sample_cmd, method, factor, experiment_dir, source_table)
+
+def augment_with_method(method, factor, experiment_dir, source_table) -> Path:
+    return mutate_dataset(build_augment_cmd, method, factor, experiment_dir, source_table)

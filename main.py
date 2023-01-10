@@ -3,7 +3,6 @@
 import itertools
 import os
 import subprocess
-from dataclasses import dataclass
 from pathlib import Path
 from Dataset import Dataset
 from commands import *
@@ -20,7 +19,7 @@ TPCHOrder = Dataset("tpc-orders", "TPC-H/tpch_orders.csv")
 TPCHOrdersCustomer = Dataset("tpc-orders-customer", "TPC-H/tpch_orders_customer.csv")
 
 
-datasets = [TPCHOrdersCustomer, AdultsDataset]
+datasets = [AdultsDataset]
 dataset = datasets[0]
 
 
@@ -33,7 +32,9 @@ def main():
         rewrite_separator(dataset, source_table)
 
     sample_methods = ["full", "random"]  # , "kmeans"
-    sample_factors = [0.01, 0.1, 1]
+    sample_factors = [0.01, 1]
+    augmentation_method = 'smote'
+    augmentation_factor = 10.0
     # sample_factors = [1]
 
     sample_paths: list[Path] = []
@@ -75,6 +76,24 @@ def main():
         fd_file_after_metanome = Path("results", f"{fd_file_name}_fds")
         fd_file_path = mv_to_results(fd_file_after_metanome)
         fd_paths.append(fd_file_path)
+
+        if method == 'full':
+            continue
+        
+        ### Evaluation for all augmentation methods ###
+        for idx in range(1):
+            print(f'Augmenting data')
+            base_file_name = f'{new_sample_path.stem}_{augmentation_method}x{augmentation_factor}'
+
+            augmentation_path = augment_with_method(augmentation_method, augmentation_factor, experiment_dir, new_sample_path)
+            augmentation_path = mv_to_results(augmentation_path, base_file_name + '.csv')
+
+            fd_file_name = base_file_name
+            runShell(build_metanome_cmd(augmentation_path, fd_file_name, dataset.separator))
+
+            fd_file_after_metanome = Path("results", f"{fd_file_name}_fds")
+            fd_file_path = mv_to_results(fd_file_after_metanome)
+            fd_paths.append(fd_file_path)
 
     ### Evaluations for all sampling methods / Comparison ###
     errors_json_path = os.path.join(experiment_dir, "errors.json")
